@@ -275,6 +275,61 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// إنشاء عنصر التحقق الخفي الخاص برقم الهاتف
+if (!document.getElementById('recaptcha-container')) {
+  const div = document.createElement('div');
+  div.id = 'recaptcha-container';
+  document.body.appendChild(div);
+}
+
+// تفعيل وظائف الأزرار تلقائياً
+document.querySelectorAll('button').forEach(btn => {
+  // زر جوجل
+  if (btn.innerText.includes('Google') || btn.innerText.includes('جوجل')) {
+    btn.addEventListener('click', () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).then(() => {
+        alert('تم تسجيل الدخول بنجاح!');
+        location.reload();
+      }).catch((error) => {
+        alert('خطأ: ' + error.message);
+      });
+    });
+  }
+  
+  // زر إرسال كود الـ OTP
+  if (btn.innerText.includes('OTP') || btn.innerText.includes('كود')) {
+    btn.addEventListener('click', () => {
+      const phoneInput = document.querySelector('input[type="text"], input[type="tel"]');
+      const phoneNumber = phoneInput ? phoneInput.value.trim() : '';
+      if (!phoneNumber) {
+        alert('الرجاء إدخال رقم الهاتف مع الرمز الدولي (مثال: +201103393855)');
+        return;
+      }
+      
+      const appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
+      auth.signInWithPhoneNumber(phoneNumber, appVerifier)
+        .then((confirmationResult) => {
+          const code = prompt('تم إرسال الكود! (إذا كنت تستخدم الرقم التجريبي، اكتب 123456 أو الكود الذي وصلك):');
+          if (code) {
+            return confirmationResult.confirm(code);
+          }
+        })
+        .then((result) => {
+          if (result) {
+            alert('تم تسجيل الدخول بنجاح!');
+            location.reload();
+          }
+        })
+        .catch((error) => {
+          alert('خطأ في إرسال الكود: ' + error.message);
+        });
+    });
+  }
+});
 
   </script>
 </body>
