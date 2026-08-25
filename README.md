@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>متجري الإلكتروني</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Firebase SDKs (Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen">
+
+  <!-- 1. شاشة تسجيل الدخول الإجبارية (حظر الدخول) -->
+  <div id="auth-screen" class="fixed inset-0 bg-gray-900 bg-opacity-95 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 text-center">
+      <h2 class="text-2xl font-bold text-gray-800 mb-2">تسجيل الدخول للمتجر</h2>
+      <p class="text-gray-500 mb-6 text-sm">يجب تسجيل الدخول أولاً لتتمكن من تصفح المنتجات والشراء</p>
+
+      <!-- زر Google -->
+      <button id="google-login-btn" class="w-full mb-4 bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-gray-50 transition">
+        <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        الدخول بواسطة Google
+      </button>
+
+      <div class="relative my-4">
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-200"></div></div>
+        <div class="relative flex justify-center text-xs uppercase"><span class="bg-white px-2 text-gray-400">أو</span></div>
+      </div>
+
+      <!-- تسجيل الدخول برقم الهاتف -->
+      <div id="phone-step-1">
+        <input type="tel" id="phone-number" placeholder="رقم الهاتف (مثال: +201103393855)" class="w-full px-4 py-3 border rounded-xl mb-3 text-left dir-ltr focus:ring-2 focus:ring-blue-500 outline-none">
+        <div id="recaptcha-container" class="mb-3"></div>
+        <button id="send-otp-btn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition">إرسال كود التحقق (OTP)</button>
+      </div>
+
+      <div id="phone-step-2" class="hidden">
+        <input type="text" id="otp-code" placeholder="أدخل كود OTP" class="w-full px-4 py-3 border rounded-xl mb-3 text-center tracking-widest text-lg focus:ring-2 focus:ring-blue-500 outline-none">
+        <button id="verify-otp-btn" class="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition">تأكيد الكود والدخول</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. واجهة التطبيق الرئيسية (تظهر بعد تسجيل الدخول فقط) -->
+  <div id="app-screen" class="hidden min-h-screen flex flex-col">
+    <!-- Navbar -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+      <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+        <h1 class="text-xl font-bold text-gray-800">متجري الرقمي</h1>
+        
+        <div class="flex items-center gap-4">
+          <!-- زر التواصل مباشر -->
+          <a href="https://wa.me/201103393855" target="_blank" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-green-600">
+            واتساب: 01103393855
+          </a>
+          <!-- زر السلة -->
+          <button id="cart-btn" class="relative bg-gray-100 p-2 rounded-lg hover:bg-gray-200">
+            🛒 <span id="cart-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">0</span>
+          </button>
+          <!-- تسجيل خروج -->
+          <button id="logout-btn" class="text-sm text-red-600 hover:underline">خروج</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full">
+      
+      <!-- لوحة التاجر/الأدمن (تظهر فقط للتاجر صاحب الرقم/البريد المحدد) -->
+      <section id="admin-panel" class="hidden bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-8">
+        <h2 class="text-lg font-bold text-yellow-800 mb-3">لوحة التاجر (إضافة منتج جديد)</h2>
+        <form id="add-product-form" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input type="text" id="p-title" placeholder="اسم المنتج" required class="p-2 border rounded-lg">
+          <input type="number" id="p-price" placeholder="السعر (ج.م)" required class="p-2 border rounded-lg">
+          <input type="url" id="p-image" placeholder="رابط صورة المنتج" required class="p-2 border rounded-lg">
+          <button type="submit" class="bg-yellow-600 text-white font-semibold py-2 rounded-lg hover:bg-yellow-700">إضافة المنتج</button>
+        </form>
+      </section>
+
+      <!-- قائمة المنتجات -->
+      <section>
+        <h2 class="text-xl font-bold text-gray-800 mb-4">المنتجات المتاحة</h2>
+        <div id="products-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <!-- يتم تحميل المنتجات هنا ديناميكياً -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- 3. نافذة السلة السحابية -->
+  <div id="cart-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex justify-end">
+    <div class="bg-white w-full max-w-md h-full p-6 flex flex-col justify-between shadow-2xl">
+      <div>
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold">عربة التسوق السحابية</h3>
+          <button id="close-cart-btn" class="text-gray-500 text-2xl">&times;</button>
+        </div>
+        <div id="cart-items" class="divide-y overflow-y-auto max-h-[70vh]"></div>
+      </div>
+      <div class="border-t pt-4">
+        <div class="flex justify-between text-lg font-bold mb-4">
+          <span>الإجمالي:</span>
+          <span id="cart-total">0 ج.م</span>
+        </div>
+        <button onclick="alert('تم إرسال الطلب للتاجر!')" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">تأكيد الطلب</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- السكريبت البرمجي للربط مع Firebase -->
+  <script>
+    // ⚠️ استبدل البيانات التالية ببيانات مشروعك من Firebase Console
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // تعيين رقم التاجر المعتمد (الذي يحق له إضافة منتجات فقط)
+    const ADMIN_PHONE = "+201103393855"; 
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+    let confirmationResult = null;
+
+    // --- تهيئة ReCaptcha لإرسال OTP ---
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+      'size': 'invisible'
+    });
+
+    // --- تسجيل الدخول بـ Google ---
+    document.getElementById('google-login-btn').addEventListener('click', () => {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).catch(err => alert(err.message));
+    });
+
+    // --- إرسال كود OTP للهاتف ---
+    document.getElementById('send-otp-btn').addEventListener('click', () => {
+      const phoneNumber = document.getElementById('phone-number').value.trim();
+      if (!phoneNumber) return alert("يرجى إدخال رقم الهاتف مع كود الدولة (+20)");
+
+      auth.signInWithPhoneNumber(phoneNumber, window.recaptchaVerifier)
+        .then((result) => {
+          confirmationResult = result;
+          document.getElementById('phone-step-1').classList.add('hidden');
+          document.getElementById('phone-step-2').classList.remove('hidden');
+          alert("تم إرسال كود OTP إلى هاتفك.");
+        }).catch(err => alert("خطأ في إرسال الكود: " + err.message));
+    });
+
+    // --- تأكيد كود OTP ---
+    document.getElementById('verify-otp-btn').addEventListener('click', () => {
+      const code = document.getElementById('otp-code').value.trim();
+      confirmationResult.confirm(code).catch(err => alert("كود OTP غير صحيح: " + err.message));
+    });
+
+    // --- مراقبة حالة الجلسة والتسجيل (Auth Guard) ---
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        document.getElementById('auth-screen').classList.add('hidden');
+        document.getElementById('app-screen').classList.remove('hidden');
+
+        // التحقق مما إذا كان المستخدم هو التاجر (الأدمن)
+        if (user.phoneNumber === ADMIN_PHONE) {
+          document.getElementById('admin-panel').classList.remove('hidden');
+        }
+
+        // تحميل المنتجات والعربة السحابية
+        loadProducts();
+        syncCartCloud();
+      } else {
+        currentUser = null;
+        document.getElementById('auth-screen').classList.remove('hidden');
+        document.getElementById('app-screen').classList.add('hidden');
+      }
+    });
+
+    // --- تسجيل الخروج ---
+    document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
+
+    // --- إضافة منتج جديد (للتاجر فقط) ---
+    document.getElementById('add-product-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      db.collection('products').add({
+        title: document.getElementById('p-title').value,
+        price: Number(document.getElementById('p-price').value),
+        image: document.getElementById('p-image').value,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(() => {
+        alert('تمت إضافة المنتج بنجاح!');
+        e.target.reset();
+      });
+    });
+
+    // --- جلب المنتجات في الوقت الفعلي ---
+    function loadProducts() {
+      db.collection('products').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        const grid = document.getElementById('products-grid');
+        grid.innerHTML = '';
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          grid.innerHTML += `
+            <div class="bg-white rounded-2xl shadow-sm border p-4 flex flex-col justify-between">
+              <img src="${item.image}" class="w-full h-40 object-cover rounded-xl mb-3" alt="${item.title}">
+              <div>
+                <h3 class="font-bold text-gray-800">${item.title}</h3>
+                <p class="text-blue-600 font-bold mt-1">${item.price} ج.م</p>
+              </div>
+              <button onclick="addToCart('${doc.id}', '${item.title}', ${item.price})" class="mt-4 w-full bg-gray-900 text-white py-2 rounded-xl text-sm font-semibold hover:bg-gray-800">إضافة للسلة 🛒</button>
+            </div>
+          `;
+        });
+      });
+    }
+
+    // --- مزامنة عربة التسوق مع السحابة لكل عميل ---
+    function addToCart(id, title, price) {
+      const cartRef = db.collection('carts').doc(currentUser.uid).collection('items').doc(id);
+      cartRef.set({
+        title: title,
+        price: price,
+        quantity: firebase.firestore.FieldValue.increment(1)
+      }, { merge: true });
+    }
+
+    function syncCartCloud() {
+      db.collection('carts').doc(currentUser.uid).collection('items').onSnapshot(snapshot => {
+        const cartItemsDiv = document.getElementById('cart-items');
+        let total = 0;
+        let count = 0;
+        cartItemsDiv.innerHTML = '';
+
+        snapshot.forEach(doc => {
+          const item = doc.data();
+          total += item.price * item.quantity;
+          count += item.quantity;
+
+          cartItemsDiv.innerHTML += `
+            <div class="py-3 flex justify-between items-center">
+              <div>
+                <h4 class="font-semibold text-sm">${item.title}</h4>
+                <p class="text-xs text-gray-500">${item.price} × ${item.quantity}</p>
+              </div>
+              <span class="font-bold text-sm">${item.price * item.quantity} ج.م</span>
+            </div>
+          `;
+        });
+
+        document.getElementById('cart-count').innerText = count;
+        document.getElementById('cart-total').innerText = `${total} ج.م`;
+      });
+    }
+
+    // --- التحكم بفتح/إغلاق السلة ---
+    document.getElementById('cart-btn').addEventListener('click', () => document.getElementById('cart-modal').classList.remove('hidden'));
+    document.getElementById('close-cart-btn').addEventListener('click', () => document.getElementById('cart-modal').classList.add('hidden'));
+  </script>
+</body>
+</html>
+
