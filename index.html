@@ -264,6 +264,16 @@
     // --- التحكم بفتح/إغلاق السلة ---
     document.getElementById('cart-btn').addEventListener('click', () => document.getElementById('cart-modal').classList.remove('hidden'));
     document.getElementById('close-cart-btn').addEventListener('click', () => document.getElementById('cart-modal').classList.add('hidden'));
+const firebaseConfig = {
+  apiKey: "AIzaSyCUSiE0Q4ZmPtC0dBkDvNnZ1maikeqiRIU",
+  authDomain: "maro-store-f581b.firebaseapp.com",
+  projectId: "maro-store-f581b",
+  storageBucket: "maro-store-f581b.firebasestorage.app",
+  messagingSenderId: "712885860491",
+  appId: "1:712885860491:web:34263ecadff4be8b0e3c8e"
+};
+firebase.initializeApp(firebaseConfig);
+
   </script>
 </body>
 </html>
