@@ -273,8 +273,64 @@ const firebaseConfig = {
   appId: "1:712885860491:web:34263ecadff4be8b0e3c8e"
 };
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
+
+  const auth = firebase.auth();
 const db = firebase.firestore();
+
+document.addEventListener('DOMContentLoaded', () => {
+  const buttons = document.querySelectorAll('button');
+
+  buttons.forEach(btn => {
+    // زر Google
+    if (btn.innerText.includes('Google') || btn.innerText.includes('جوجل')) {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider)
+          .then(() => {
+            alert('تم تسجيل الدخول بنجاح!');
+            location.reload();
+          })
+          .catch((err) => alert('خطأ جوجل: ' + err.message));
+      };
+    }
+
+    // زر OTP
+    if (btn.innerText.includes('OTP') || btn.innerText.includes('كود')) {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const input = document.querySelector('input[type="text"], input[type="tel"]') || document.querySelector('input');
+        const phone = input ? input.value.trim() : '';
+
+        if (!phone) {
+          alert('يرجى كتابة رقم الهاتف بالرمز الدولي أولاً (مثال: +201103393855)');
+          return;
+        }
+
+        if (!document.getElementById('recaptcha-container')) {
+          const div = document.createElement('div');
+          div.id = 'recaptcha-container';
+          document.body.appendChild(div);
+        }
+
+        const appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { 'size': 'invisible' });
+        auth.signInWithPhoneNumber(phone, appVerifier)
+          .then((confirmationResult) => {
+            const code = prompt('أدخل كود التحقق OTP (أو الكود التجريبي 123456):');
+            if (code) return confirmationResult.confirm(code);
+          })
+          .then((result) => {
+            if (result) {
+              alert('تم تسجيل الدخول بنجاح!');
+              location.reload();
+            }
+          })
+          .catch((err) => alert('خطأ OTP: ' + err.message));
+      };
+    }
+  });
+});
+
 const auth = firebase.auth();
 const db = firebase.firestore();
 
